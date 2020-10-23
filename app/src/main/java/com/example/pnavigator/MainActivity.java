@@ -1,16 +1,16 @@
 package com.example.pnavigator;
 
-import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.os.Bundle;
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
 
 import com.mapbox.mapboxsdk.Mapbox;
 import com.mapbox.mapboxsdk.camera.CameraPosition;
@@ -30,7 +30,7 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 
-//import timber.log.Timber;
+import timber.log.Timber;
 
 /**
  * Download, view, navigate to, and delete an offline region.
@@ -223,7 +223,7 @@ public class MainActivity extends AppCompatActivity {
                     String json = jsonObject.toString();
                     metadata = json.getBytes(JSON_CHARSET);
                 } catch (Exception exception) {
-//                    Timber.e("Failed to encode metadata: %s", exception.getMessage());
+                    Timber.e("Failed to encode metadata: %s", exception.getMessage());
                     metadata = null;
                 }
 
@@ -232,14 +232,14 @@ public class MainActivity extends AppCompatActivity {
                 offlineManager.createOfflineRegion(definition, metadata, new OfflineManager.CreateOfflineRegionCallback() {
                     @Override
                     public void onCreate(OfflineRegion offlineRegion) {
-//                        Timber.d( "Offline region created: %s" , regionName);
+                        Timber.d( "Offline region created: %s" , regionName);
                         MainActivity.this.offlineRegion = offlineRegion;
                         launchDownload();
                     }
 
                     @Override
                     public void onError(String error) {
-//                        Timber.e( "Error: %s" , error);
+                        Timber.e( "Error: %s" , error);
                     }
                 });
             }
@@ -267,21 +267,21 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 // Log what is being currently downloaded
-//                Timber.d("%s/%s resources; %s bytes downloaded.",
-//                        String.valueOf(status.getCompletedResourceCount()),
-//                        String.valueOf(status.getRequiredResourceCount()),
-//                        String.valueOf(status.getCompletedResourceSize()));
+                Timber.d("%s/%s resources; %s bytes downloaded.",
+                        String.valueOf(status.getCompletedResourceCount()),
+                        String.valueOf(status.getRequiredResourceCount()),
+                        String.valueOf(status.getCompletedResourceSize()));
             }
 
             @Override
             public void onError(OfflineRegionError error) {
-//                Timber.e("onError reason: %s", error.getReason());
-//                Timber.e("onError message: %s", error.getMessage());
+                Timber.e("onError reason: %s", error.getReason());
+                Timber.e("onError message: %s", error.getMessage());
             }
 
             @Override
             public void mapboxTileCountLimitExceeded(long limit) {
-//                Timber.e("Mapbox tile count limit exceeded: %s", limit);
+                Timber.e("Mapbox tile count limit exceeded: %s", limit);
             }
         });
 
@@ -369,7 +369,7 @@ public class MainActivity extends AppCompatActivity {
                                     public void onError(String error) {
                                         progressBar.setVisibility(View.INVISIBLE);
                                         progressBar.setIndeterminate(false);
-//                                        Timber.e( "Error: %s", error);
+                                        Timber.e( "Error: %s", error);
                                     }
                                 });
                             }
@@ -387,12 +387,11 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onError(String error) {
-//                Timber.e( "Error: %s", error);
+                Timber.e( "Error: %s", error);
             }
         });
     }
 
-    @SuppressLint("StringFormatInvalid")
     private String getRegionName(OfflineRegion offlineRegion) {
         // Get the region name from the offline region metadata
         String regionName;
@@ -403,7 +402,7 @@ public class MainActivity extends AppCompatActivity {
             JSONObject jsonObject = new JSONObject(json);
             regionName = jsonObject.getString(JSON_FIELD_REGION_NAME);
         } catch (Exception exception) {
-//            Timber.e("Failed to decode metadata: %s", exception.getMessage());
+            Timber.e("Failed to decode metadata: %s", exception.getMessage());
             regionName = String.format(getString(R.string.region_name), offlineRegion.getID());
         }
         return regionName;
