@@ -12,10 +12,17 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.mapbox.android.core.permissions.PermissionsListener;
+import com.mapbox.android.core.permissions.PermissionsManager;
 import com.mapbox.mapboxsdk.Mapbox;
 import com.mapbox.mapboxsdk.camera.CameraPosition;
 import com.mapbox.mapboxsdk.camera.CameraUpdateFactory;
 import com.mapbox.mapboxsdk.geometry.LatLngBounds;
+import com.mapbox.mapboxsdk.location.LocationComponent;
+import com.mapbox.mapboxsdk.location.LocationComponentActivationOptions;
+import com.mapbox.mapboxsdk.location.LocationComponentOptions;
+import com.mapbox.mapboxsdk.location.modes.CameraMode;
+import com.mapbox.mapboxsdk.location.modes.RenderMode;
 import com.mapbox.mapboxsdk.maps.MapView;
 import com.mapbox.mapboxsdk.maps.MapboxMap;
 import com.mapbox.mapboxsdk.maps.OnMapReadyCallback;
@@ -26,18 +33,21 @@ import com.mapbox.mapboxsdk.offline.OfflineRegionError;
 import com.mapbox.mapboxsdk.offline.OfflineRegionStatus;
 import com.mapbox.mapboxsdk.offline.OfflineTilePyramidRegionDefinition;
 
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import timber.log.Timber;
 
 /**
  * Download, view, navigate to, and delete an offline region.
  */
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity  implements
+        OnMapReadyCallback, PermissionsListener {
 
-    private static final String TAG = "OffManActivity";
+//    private static final String TAG = "OffManActivity";
 
     // JSON encoding/decoding
     public static final String JSON_CHARSET = "UTF-8";
@@ -49,6 +59,7 @@ public class MainActivity extends AppCompatActivity {
     private ProgressBar progressBar;
     private Button downloadButton;
     private Button listButton;
+
 
     private boolean isEndNotified;
     private int regionSelected;
@@ -72,14 +83,16 @@ public class MainActivity extends AppCompatActivity {
         // Set up the MapView
         mapView = findViewById(R.id.mapView);
         mapView.onCreate(savedInstanceState);
-        mapView.getMapAsync(new OnMapReadyCallback() {
+        mapView.getMapAsync(this);
+    }
+
             @Override
             public void onMapReady(@NonNull MapboxMap mapboxMap) {
-                map = mapboxMap;
-                mapboxMap.setStyle(Style.MAPBOX_STREETS, new Style.OnStyleLoaded() {
+                MainActivity.this.map = mapboxMap;
+                mapboxMap.setStyle(Style.SATELLITE_STREETS, new Style.OnStyleLoaded() {
                     @Override
                     public void onStyleLoaded(@NonNull Style style) {
-
+                        enableLocationComponent(style);
                         // Assign progressBar for later use
                         progressBar = findViewById(R.id.progress_bar);
 
@@ -107,8 +120,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                 });
             }
-        });
-    }
+
 
     // Override Activity lifecycle methods
     @Override
@@ -136,7 +148,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onSaveInstanceState(Bundle outState) {
+    protected void onSaveInstanceState(@NotNull Bundle outState) {
         super.onSaveInstanceState(outState);
         mapView.onSaveInstanceState(outState);
     }
@@ -177,6 +189,7 @@ public class MainActivity extends AppCompatActivity {
                             Toast.makeText(MainActivity.this, getString(R.string.dialog_toast), Toast.LENGTH_SHORT).show();
                         } else {
                             // Begin download process
+                            Toast.makeText(MainActivity.this, "Downloading", Toast.LENGTH_SHORT).show();
                             downloadRegion(regionName);
                         }
                     }
@@ -311,7 +324,7 @@ public class MainActivity extends AppCompatActivity {
                 for (OfflineRegion offlineRegion : offlineRegions) {
                     offlineRegionsNames.add(getRegionName(offlineRegion));
                 }
-                final CharSequence[] items = offlineRegionsNames.toArray(new CharSequence[offlineRegionsNames.size()]);
+                final CharSequence[] items = offlineRegionsNames.toArray(new CharSequence[0]);
 
                 // Build a dialog containing the list of regions
                 AlertDialog dialog = new AlertDialog.Builder(MainActivity.this)
@@ -392,6 +405,8 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+
+//    @SuppressLint("StringFormatInvalid")
     private String getRegionName(OfflineRegion offlineRegion) {
         // Get the region name from the offline region metadata
         String regionName;
@@ -403,7 +418,8 @@ public class MainActivity extends AppCompatActivity {
             regionName = jsonObject.getString(JSON_FIELD_REGION_NAME);
         } catch (Exception exception) {
             Timber.e("Failed to decode metadata: %s", exception.getMessage());
-            regionName = String.format(getString(R.string.region_name), offlineRegion.getID());
+//            regionName = String.format(getString(R.string.region_name), offlineRegion.getID());
+            regionName="Error";
         }
         return regionName;
     }
@@ -442,5 +458,70 @@ public class MainActivity extends AppCompatActivity {
 
         // Show a toast
         Toast.makeText(MainActivity.this, message, Toast.LENGTH_LONG).show();
+    }
+    @SuppressWarnings( {"MissingPermission"})
+    private void enableLocationComponent(@NonNull Style loadedMapStyle) {
+// Check if permissions are enabled and if not request
+        if (PermissionsManager.areLocationPermissionsGranted(this)) {
+
+// Enable the most basic pulsing styling by ONLY using
+// the `.pulseEnabled()` method
+            LocationComponentOptions customLocationComponentOptions = LocationComponentOptions.builder(this)
+                    .pulseEnabled(true)
+                    .build();
+
+// Get an instance of the component
+            LocationComponent locationComponent = map.getLocationComponent();
+
+// Activate with options
+            locationComponent.activateLocationComponent(
+                    LocationComponentActivationOptions.builder(this, loadedMapStyle)
+                            .locationComponentOptions(customLocationComponentOptions)
+                            .build());
+
+// Enable to make component visible
+            locationComponent.setLocationComponentEnabled(true);
+
+// Set the component's camera mode
+            locationComponent.setCameraMode(CameraMode.TRACKING);
+
+// Set the component's render mode
+            locationComponent.setRenderMode(RenderMode.NORMAL);
+        } else {
+            PermissionsManager permissionsManager = new PermissionsManager(this);
+            permissionsManager.requestLocationPermissions(this);
+        }
+    }
+
+
+//    @Override
+//    public void onMapReady(@NonNull MapboxMap mapboxMap) {
+//
+//    }
+
+    @Override
+    public void onExplanationNeeded(List<String> permissionsToExplain) {
+        Toast.makeText(this, R.string.user_location_permission_explanation, Toast.LENGTH_LONG).show();
+
+    }
+//    @Override
+//    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+//        permissionsManager.onRequestPermissionsResult(requestCode, permissions, grantResults);
+//    }
+
+    @Override
+    public void onPermissionResult(boolean granted) {
+        if (granted) {
+            map.getStyle(new Style.OnStyleLoaded() {
+                @Override
+                public void onStyleLoaded(@NonNull Style style) {
+                    enableLocationComponent(style);
+                }
+            });
+        } else {
+            Toast.makeText(this, R.string.user_location_permission_not_granted, Toast.LENGTH_LONG).show();
+            finish();
+        }
+
     }
 }
