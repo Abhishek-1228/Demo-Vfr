@@ -1,4 +1,6 @@
-package com.example.pnavigator;
+package com.example.demovfr;
+
+// Classes needed to add the location engine
 
 import android.app.AlertDialog;
 import android.content.DialogInterface;
@@ -12,6 +14,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.mapbox.android.core.location.LocationEngine;
 import com.mapbox.android.core.permissions.PermissionsListener;
 import com.mapbox.android.core.permissions.PermissionsManager;
 import com.mapbox.mapboxsdk.Mapbox;
@@ -48,6 +51,8 @@ public class MainActivity extends AppCompatActivity  implements
         OnMapReadyCallback, PermissionsListener {
 
 //    private static final String TAG = "OffManActivity";
+// Variables needed to add the location engine
+private LocationEngine locationEngine;
 
     // JSON encoding/decoding
     public static final String JSON_CHARSET = "UTF-8";
@@ -67,6 +72,9 @@ public class MainActivity extends AppCompatActivity  implements
     // Offline objects
     private OfflineManager offlineManager;
     private OfflineRegion offlineRegion;
+    // Variables needed to handle location permissions
+    private PermissionsManager permissionsManager;
+
 
 
     @Override
@@ -86,40 +94,41 @@ public class MainActivity extends AppCompatActivity  implements
         mapView.getMapAsync(this);
     }
 
+    @Override
+    public void onMapReady(@NonNull MapboxMap mapboxMap) {
+        MainActivity.this.map = mapboxMap;
+        mapboxMap.setStyle(Style.MAPBOX_STREETS, new Style.OnStyleLoaded() {
             @Override
-            public void onMapReady(@NonNull MapboxMap mapboxMap) {
-                MainActivity.this.map = mapboxMap;
-                mapboxMap.setStyle(Style.SATELLITE_STREETS, new Style.OnStyleLoaded() {
+            public void onStyleLoaded(@NonNull Style style) {
+                enableLocationComponent(style);
+                // Assign progressBar for later use
+                progressBar = findViewById(R.id.progress_bar);
+
+                // Set up the offlineManager
+                offlineManager = OfflineManager.getInstance(MainActivity.this);
+
+                // Bottom navigation bar button clicks are handled here.
+                // Download offline button
+                downloadButton = findViewById(R.id.download_button);
+                downloadButton.setOnClickListener(new View.OnClickListener() {
                     @Override
-                    public void onStyleLoaded(@NonNull Style style) {
-                        enableLocationComponent(style);
-                        // Assign progressBar for later use
-                        progressBar = findViewById(R.id.progress_bar);
+                    public void onClick(View view) {
+                        downloadRegionDialog();
+                    }
+                });
 
-                        // Set up the offlineManager
-                        offlineManager = OfflineManager.getInstance(MainActivity.this);
-
-                        // Bottom navigation bar button clicks are handled here.
-                        // Download offline button
-                        downloadButton = findViewById(R.id.download_button);
-                        downloadButton.setOnClickListener(new View.OnClickListener() {
-                            @Override
-                            public void onClick(View view) {
-                                downloadRegionDialog();
-                            }
-                        });
-
-                        // List offline regions
-                        listButton =  findViewById(R.id.list_button);
-                        listButton.setOnClickListener(new View.OnClickListener() {
-                            @Override
-                            public void onClick(View view) {
-                                downloadedRegionList();
-                            }
-                        });
+                // List offline regions
+                listButton =  findViewById(R.id.list_button);
+                listButton.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        downloadedRegionList();
                     }
                 });
             }
+        });
+//        Toast.makeText(MainActivity.this, (int) map.getCameraPosition().zoom, Toast.LENGTH_SHORT).show();
+    }
 
 
     // Override Activity lifecycle methods
@@ -182,16 +191,26 @@ public class MainActivity extends AppCompatActivity  implements
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         String regionName = regionNameEdit.getText().toString();
+                        Toast.makeText(MainActivity.this,regionName,Toast.LENGTH_SHORT).show();
                         // Require a region name to begin the download.
                         // If the user-provided string is empty, display
                         // a toast message and do not begin download.
+                        int zoom=0;
                         if (regionName.length() == 0) {
                             Toast.makeText(MainActivity.this, getString(R.string.dialog_toast), Toast.LENGTH_SHORT).show();
-                        } else {
-                            // Begin download process
-                            Toast.makeText(MainActivity.this, "Downloading", Toast.LENGTH_SHORT).show();
-                            downloadRegion(regionName);
                         }
+                        else {
+                            zoom = (int) map.getCameraPosition().zoom;
+                            if (zoom <13) {
+//                                while (map.getCameraPosition().zoom > 12)
+                                    Toast.makeText(MainActivity.this, "Please Zoom in", Toast.LENGTH_SHORT).show();
+//                                downloadRegion(regionName);
+                            } else {
+                                Toast.makeText(MainActivity.this, "Downloading", Toast.LENGTH_SHORT).show();
+                                downloadRegion(regionName);
+                            }
+                        }
+//
                     }
                 })
                 .setNegativeButton(getString(R.string.dialog_negative_button), new DialogInterface.OnClickListener() {
@@ -218,7 +237,7 @@ public class MainActivity extends AppCompatActivity  implements
         map.getStyle(new Style.OnStyleLoaded() {
             @Override
             public void onStyleLoaded(@NonNull Style style) {
-                String styleUrl = style.getUri();
+                String styleUrl = Style.MAPBOX_STREETS;
                 LatLngBounds bounds = map.getProjection().getVisibleRegion().latLngBounds;
                 double minZoom = map.getCameraPosition().zoom;
                 double maxZoom = map.getMaxZoomLevel();
@@ -406,7 +425,7 @@ public class MainActivity extends AppCompatActivity  implements
     }
 
 
-//    @SuppressLint("StringFormatInvalid")
+    //    @SuppressLint("StringFormatInvalid")
     private String getRegionName(OfflineRegion offlineRegion) {
         // Get the region name from the offline region metadata
         String regionName;
@@ -459,7 +478,7 @@ public class MainActivity extends AppCompatActivity  implements
         // Show a toast
         Toast.makeText(MainActivity.this, message, Toast.LENGTH_LONG).show();
     }
-    @SuppressWarnings( {"MissingPermission"})
+        @SuppressWarnings( {"MissingPermission"})
     private void enableLocationComponent(@NonNull Style loadedMapStyle) {
 // Check if permissions are enabled and if not request
         if (PermissionsManager.areLocationPermissionsGranted(this)) {
@@ -486,28 +505,28 @@ public class MainActivity extends AppCompatActivity  implements
             locationComponent.setCameraMode(CameraMode.TRACKING);
 
 // Set the component's render mode
-            locationComponent.setRenderMode(RenderMode.NORMAL);
+            locationComponent.setRenderMode(RenderMode.COMPASS);
+
+
         } else {
-            PermissionsManager permissionsManager = new PermissionsManager(this);
+             permissionsManager = new PermissionsManager(this);
             permissionsManager.requestLocationPermissions(this);
         }
     }
 
 
-//    @Override
-//    public void onMapReady(@NonNull MapboxMap mapboxMap) {
-//
-//    }
+
+
 
     @Override
     public void onExplanationNeeded(List<String> permissionsToExplain) {
         Toast.makeText(this, R.string.user_location_permission_explanation, Toast.LENGTH_LONG).show();
 
     }
-//    @Override
-//    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-//        permissionsManager.onRequestPermissionsResult(requestCode, permissions, grantResults);
-//    }
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        permissionsManager.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    }
 
     @Override
     public void onPermissionResult(boolean granted) {
