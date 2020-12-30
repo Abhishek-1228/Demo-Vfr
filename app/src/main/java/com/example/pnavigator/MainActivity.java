@@ -35,6 +35,7 @@ import com.mapbox.mapboxsdk.offline.OfflineRegion;
 import com.mapbox.mapboxsdk.offline.OfflineRegionError;
 import com.mapbox.mapboxsdk.offline.OfflineRegionStatus;
 import com.mapbox.mapboxsdk.offline.OfflineTilePyramidRegionDefinition;
+import com.mapbox.mapboxsdk.plugins.building.BuildingPlugin;
 
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONObject;
@@ -43,7 +44,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import timber.log.Timber;
-
 /**
  * Download, view, navigate to, and delete an offline region.
  */
@@ -75,6 +75,7 @@ private LocationEngine locationEngine;
     // Variables needed to handle location permissions
     private PermissionsManager permissionsManager;
 
+    private BuildingPlugin buildingPlugin;
 
 
     @Override
@@ -125,6 +126,9 @@ private LocationEngine locationEngine;
                         downloadedRegionList();
                     }
                 });
+                buildingPlugin = new BuildingPlugin(mapView, map, style);
+                buildingPlugin.setMinZoomLevel(15f);
+                buildingPlugin.setVisibility(true);
             }
         });
 //        Toast.makeText(MainActivity.this, (int) map.getCameraPosition().zoom, Toast.LENGTH_SHORT).show();
@@ -201,7 +205,7 @@ private LocationEngine locationEngine;
                         }
                         else {
                             zoom = (int) map.getCameraPosition().zoom;
-                            if (zoom <13) {
+                            if (zoom <11) {
 //                                while (map.getCameraPosition().zoom > 12)
                                     Toast.makeText(MainActivity.this, "Please Zoom in", Toast.LENGTH_SHORT).show();
 //                                downloadRegion(regionName);
