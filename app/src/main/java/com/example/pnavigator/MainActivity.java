@@ -2,8 +2,12 @@ package com.example.demovfr;
 
 // Classes needed to add the location engine
 
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -14,12 +18,18 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.gson.JsonObject;
 import com.mapbox.android.core.location.LocationEngine;
 import com.mapbox.android.core.permissions.PermissionsListener;
 import com.mapbox.android.core.permissions.PermissionsManager;
+import com.mapbox.api.geocoding.v5.models.CarmenFeature;
+import com.mapbox.geojson.Feature;
+import com.mapbox.geojson.FeatureCollection;
+import com.mapbox.geojson.Point;
 import com.mapbox.mapboxsdk.Mapbox;
 import com.mapbox.mapboxsdk.camera.CameraPosition;
 import com.mapbox.mapboxsdk.camera.CameraUpdateFactory;
+import com.mapbox.mapboxsdk.geometry.LatLng;
 import com.mapbox.mapboxsdk.geometry.LatLngBounds;
 import com.mapbox.mapboxsdk.location.LocationComponent;
 import com.mapbox.mapboxsdk.location.LocationComponentActivationOptions;
@@ -44,9 +54,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 import timber.log.Timber;
-/**
- * Download, view, navigate to, and delete an offline region.
- */
+import com.mapbox.mapboxsdk.plugins.places.autocomplete.PlaceAutocomplete;
+import com.mapbox.mapboxsdk.plugins.places.autocomplete.model.PlaceOptions;
+import com.mapbox.mapboxsdk.style.layers.SymbolLayer;
+import com.mapbox.mapboxsdk.style.sources.GeoJsonSource;
+
+import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.iconImage;
+import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.iconOffset;
+
 public class MainActivity extends AppCompatActivity  implements
         OnMapReadyCallback, PermissionsListener {
 
@@ -55,9 +70,13 @@ public class MainActivity extends AppCompatActivity  implements
 private LocationEngine locationEngine;
 
     // JSON encoding/decoding
+    private static final int REQUEST_CODE_AUTOCOMPLETE = 1;
     public static final String JSON_CHARSET = "UTF-8";
     public static final String JSON_FIELD_REGION_NAME = "FIELD_REGION_NAME";
-
+    private CarmenFeature home;
+    private CarmenFeature work;
+    private String geojsonSourceLayerId = "geojsonSourceLayerId";
+    private String symbolIconId = "symbolIconId";
     // UI elements
     private MapView mapView;
     private MapboxMap map;
@@ -98,11 +117,21 @@ private LocationEngine locationEngine;
     @Override
     public void onMapReady(@NonNull MapboxMap mapboxMap) {
         MainActivity.this.map = mapboxMap;
-        mapboxMap.setStyle(Style.MAPBOX_STREETS, new Style.OnStyleLoaded() {
+        mapboxMap.setStyle(new Style.Builder().fromUri("mapbox://styles/abhishek1228/ckk7w0wf60sjf17qu4kwerp97/draft"), new Style.OnStyleLoaded() {
             @Override
             public void onStyleLoaded(@NonNull Style style) {
                 enableLocationComponent(style);
-                // Assign progressBar for later use
+                initSearchFab();
+
+                addUserLocations();
+
+                style.addImage(symbolIconId, BitmapFactory.decodeResource(
+                        MainActivity.this.getResources(), R.drawable.map_icon));
+
+                setUpSource(style);
+
+                setupLayer(style);
+
                 progressBar = findViewById(R.id.progress_bar);
 
                 // Set up the offlineManager
@@ -127,13 +156,88 @@ private LocationEngine locationEngine;
                     }
                 });
                 buildingPlugin = new BuildingPlugin(mapView, map, style);
-                buildingPlugin.setMinZoomLevel(15f);
+                buildingPlugin.setMinZoomLevel(20f);
                 buildingPlugin.setVisibility(true);
             }
         });
 //        Toast.makeText(MainActivity.this, (int) map.getCameraPosition().zoom, Toast.LENGTH_SHORT).show();
     }
+    private void initSearchFab() {
+        findViewById(R.id.fab_location_search).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent intent = new PlaceAutocomplete.IntentBuilder()
+                        .accessToken(Mapbox.getAccessToken() != null ? Mapbox.getAccessToken() : getString(R.string.mapbox_access_token))
+                        .placeOptions(PlaceOptions.builder()
+                                .backgroundColor(Color.parseColor("#EEEEEE"))
+                                .limit(10)
+                                .addInjectedFeature(home)
+                                .addInjectedFeature(work)
+                                .build(PlaceOptions.MODE_CARDS))
+                        .build(MainActivity.this);
+                startActivityForResult(intent, REQUEST_CODE_AUTOCOMPLETE);
+            }
+        });
+    }
 
+    private void addUserLocations() {
+        home = CarmenFeature.builder().text("Bada Bazar ")
+                .geometry(Point.fromLngLat(25.4484,  78.5685))
+                .placeName("Jhansi")
+                .id("mapbox-sf")
+                .properties(new JsonObject())
+                .build();
+
+//        work = CarmenFeature.builder().text("Mapbox DC Office")
+//                .placeName("740 15th Street NW, Washington DC")
+//                .geometry(Point.fromLngLat(-77.0338348, 38.899750))
+//                .id("mapbox-dc")
+//                .properties(new JsonObject())
+//                .build();
+    }
+
+    private void setUpSource(@NonNull Style loadedMapStyle) {
+        loadedMapStyle.addSource(new GeoJsonSource(geojsonSourceLayerId));
+    }
+
+    private void setupLayer(@NonNull Style loadedMapStyle) {
+        loadedMapStyle.addLayer(new SymbolLayer("SYMBOL_LAYER_ID", geojsonSourceLayerId).withProperties(
+                iconImage(symbolIconId),
+                iconOffset(new Float[] {0f, -8f})
+        ));
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode == Activity.RESULT_OK && requestCode == REQUEST_CODE_AUTOCOMPLETE) {
+
+// Retrieve selected location's CarmenFeature
+            CarmenFeature selectedCarmenFeature = PlaceAutocomplete.getPlace(data);
+
+// Create a new FeatureCollection and add a new Feature to it using selectedCarmenFeature above.
+// Then retrieve and update the source designated for showing a selected location's symbol layer icon
+
+            if (map != null) {
+                Style style = map.getStyle();
+                if (style != null) {
+                    GeoJsonSource source = style.getSourceAs(geojsonSourceLayerId);
+                    if (source != null) {
+                        source.setGeoJson(FeatureCollection.fromFeatures(
+                                new Feature[] {Feature.fromJson(selectedCarmenFeature.toJson())}));
+                    }
+
+// Move map camera to the selected location
+                    map.animateCamera(CameraUpdateFactory.newCameraPosition(
+                            new CameraPosition.Builder()
+                                    .target(new LatLng(((Point) selectedCarmenFeature.geometry()).latitude(),
+                                            ((Point) selectedCarmenFeature.geometry()).longitude()))
+                                    .zoom(14)
+                                    .build()), 4000);
+                }
+            }
+        }
+    }
 
     // Override Activity lifecycle methods
     @Override
@@ -491,12 +595,13 @@ private LocationEngine locationEngine;
 // the `.pulseEnabled()` method
             LocationComponentOptions customLocationComponentOptions = LocationComponentOptions.builder(this)
                     .pulseEnabled(true)
+
                     .build();
 
 // Get an instance of the component
             LocationComponent locationComponent = map.getLocationComponent();
 
-// Activate with options
+            // Activate with options
             locationComponent.activateLocationComponent(
                     LocationComponentActivationOptions.builder(this, loadedMapStyle)
                             .locationComponentOptions(customLocationComponentOptions)
