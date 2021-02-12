@@ -9,6 +9,9 @@ import android.content.Intent;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -18,6 +21,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.example.pnavigator.R;
 import com.google.gson.JsonObject;
 import com.mapbox.android.core.location.LocationEngine;
 import com.mapbox.android.core.permissions.PermissionsListener;
@@ -95,6 +99,28 @@ private LocationEngine locationEngine;
     private PermissionsManager permissionsManager;
 
     private BuildingPlugin buildingPlugin;
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+
+        MenuInflater menuInflater = getMenuInflater();
+        menuInflater.inflate(R.menu.main_menu, menu);
+
+        return super.onCreateOptionsMenu(menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+
+        switch (item.getItemId()){
+            case R.id.action_favorite:
+                back();
+            default:
+                return super.onOptionsItemSelected(item);
+
+        }
+
+    }
 
 
     @Override
@@ -650,6 +676,18 @@ private LocationEngine locationEngine;
             Toast.makeText(this, R.string.user_location_permission_not_granted, Toast.LENGTH_LONG).show();
             finish();
         }
+
+    }
+
+    public void back(){
+
+        CameraPosition back = new CameraPosition.Builder()
+                .target(new LatLng(map.getLocationComponent().getLastKnownLocation().getLatitude(),map.getLocationComponent().getLastKnownLocation().getLongitude()))
+                .zoom(map.getCameraPosition().zoom)
+                .tilt(map.getCameraPosition().tilt)
+                .build();
+
+        map.animateCamera(CameraUpdateFactory.newCameraPosition(back));
 
     }
 }
