@@ -78,7 +78,7 @@ private LocationEngine locationEngine;
     public static final String JSON_CHARSET = "UTF-8";
     public static final String JSON_FIELD_REGION_NAME = "FIELD_REGION_NAME";
     private CarmenFeature home;
-    //private CarmenFeature work;
+    private CarmenFeature work;
     private String geojsonSourceLayerId = "geojsonSourceLayerId";
     private String symbolIconId = "symbolIconId";
     // UI elements
@@ -214,12 +214,12 @@ private LocationEngine locationEngine;
                 .properties(new JsonObject())
                 .build();
 
-//        work = CarmenFeature.builder().text("Mapbox DC Office")
-//                .placeName("740 15th Street NW, Washington DC")
-//                .geometry(Point.fromLngLat(-77.0338348, 38.899750))
-//                .id("mapbox-dc")
-//                .properties(new JsonObject())
-//                .build();
+        work = CarmenFeature.builder().text("Mapbox DC Office")
+                .placeName("740 15th Street NW, Washington DC")
+                .geometry(Point.fromLngLat(-77.0338348, 38.899750))
+                .id("mapbox-dc")
+                .properties(new JsonObject())
+                .build();
     }
 
     private void setUpSource(@NonNull Style loadedMapStyle) {
