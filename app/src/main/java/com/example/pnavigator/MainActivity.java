@@ -9,6 +9,7 @@ import android.content.Intent;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.os.Environment;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -54,7 +55,15 @@ import com.mapbox.mapboxsdk.plugins.building.BuildingPlugin;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 
 import timber.log.Timber;
@@ -100,6 +109,10 @@ private LocationEngine locationEngine;
 
     private BuildingPlugin buildingPlugin;
 
+    private int flag = 0;
+    private FileOutputStream fos;
+    private File logs;
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
 
@@ -138,6 +151,8 @@ private LocationEngine locationEngine;
         mapView = findViewById(R.id.mapView);
         mapView.onCreate(savedInstanceState);
         mapView.getMapAsync(this);
+
+        createLogFile();
     }
 
     @Override
@@ -689,5 +704,50 @@ private LocationEngine locationEngine;
 
         map.animateCamera(CameraUpdateFactory.newCameraPosition(back));
 
+
     }
+
+    public void createFile(){
+        try {
+            Process process = Runtime.getRuntime().exec("logcat -d");
+            BufferedReader bufferedReader = new BufferedReader(
+                    new InputStreamReader(process.getInputStream()));
+
+            StringBuilder log = new StringBuilder();
+            String line;
+            while ((line = bufferedReader.readLine()) != null) {
+                log.append(line + "\n");
+            }
+
+            appendLog(log.toString());
+            Toast.makeText(this,"hi",Toast.LENGTH_LONG).show();
+
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void appendLog(String text) {
+
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd  'at' HH:mm:ss");
+            String currentDateTime = sdf.format(new Date());
+
+            try {
+                logs = new File(getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "LOGS_" + currentDateTime + "_.txt");
+                fos = new FileOutputStream(logs);
+                fos.write(text.getBytes());
+                fos.close();
+                Toast.makeText(this, "Saved", Toast.LENGTH_SHORT).show();
+            } catch (IOException e) {
+                Toast.makeText(this, "ERROR", Toast.LENGTH_LONG).show();
+                e.printStackTrace();
+            }
+
+    }
+
+    private void createLogFile(){
+
+    }
+
 }
