@@ -1,4 +1,4 @@
-package com.example.demovfr;
+package com.example.pnavigator;
 
 // Classes needed to add the location engine
 
@@ -78,7 +78,7 @@ private LocationEngine locationEngine;
     public static final String JSON_CHARSET = "UTF-8";
     public static final String JSON_FIELD_REGION_NAME = "FIELD_REGION_NAME";
     private CarmenFeature home;
-    private CarmenFeature work;
+    //private CarmenFeature work;
     private String geojsonSourceLayerId = "geojsonSourceLayerId";
     private String symbolIconId = "symbolIconId";
     // UI elements
