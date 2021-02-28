@@ -128,6 +128,8 @@ private LocationEngine locationEngine;
         switch (item.getItemId()){
             case R.id.action_favorite:
                 back();
+            case R.id.buildingplugin:
+                buildingplugin();
             default:
                 return super.onOptionsItemSelected(item);
 
