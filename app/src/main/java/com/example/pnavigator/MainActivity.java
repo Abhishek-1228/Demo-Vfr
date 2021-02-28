@@ -199,6 +199,7 @@ private LocationEngine locationEngine;
                 buildingPlugin = new BuildingPlugin(mapView, map, style);
                 buildingPlugin.setMinZoomLevel(20f);
                 buildingPlugin.setVisibility(true);
+                flag = 1;
             }
         });
 //        Toast.makeText(MainActivity.this, (int) map.getCameraPosition().zoom, Toast.LENGTH_SHORT).show();
@@ -747,6 +748,33 @@ private LocationEngine locationEngine;
     }
 
     private void createLogFile(){
+
+    }
+
+    private void buildingplugin(){
+
+        if(flag == 1) {
+            map.getStyle(new Style.OnStyleLoaded() {
+                @Override
+                public void onStyleLoaded(@NonNull Style style) {
+                    buildingPlugin.setVisibility(false);
+                }
+            });
+            flag = 0;
+
+        }
+        else{
+            map.getStyle(new Style.OnStyleLoaded() {
+                @Override
+                public void onStyleLoaded(@NonNull Style style) {
+                    buildingPlugin.setVisibility(true);
+                }
+            });
+            flag = 1;
+            //Toast.makeText(this, "TRUE", Toast.LENGTH_LONG).show();
+
+        }
+
 
     }
 
