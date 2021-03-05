@@ -10,6 +10,8 @@ import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -22,7 +24,6 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.example.pnavigator.R;
 import com.google.gson.JsonObject;
 import com.mapbox.android.core.location.LocationEngine;
 import com.mapbox.android.core.permissions.PermissionsListener;
@@ -137,6 +138,20 @@ private LocationEngine locationEngine;
 
     }
 
+    Handler handler = new Handler();
+    Runnable runnable = new Runnable() {
+        @Override
+        public void run() {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    back();
+                    handler.postDelayed(runnable, 3000);
+                }
+            });
+        }
+    };
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -204,8 +219,21 @@ private LocationEngine locationEngine;
                 flag = 1;
             }
         });
+
+        map.addOnCameraMoveListener(new MapboxMap.OnCameraMoveListener() {
+            @Override
+            public void onCameraMove() {
+                Log.d(TAG, "onCameraMove called");
+            }
+        });
+
+
+        handler.postDelayed(runnable, 2000);
 //        Toast.makeText(MainActivity.this, (int) map.getCameraPosition().zoom, Toast.LENGTH_SHORT).show();
     }
+
+
+    private final static String TAG = "VFR-APP";
     private void initSearchFab() {
         findViewById(R.id.fab_location_search).setOnClickListener(new View.OnClickListener() {
             @Override
@@ -316,6 +344,8 @@ private LocationEngine locationEngine;
 
     @Override
     protected void onDestroy() {
+        handler.removeCallbacksAndMessages(null);
+
         super.onDestroy();
         mapView.onDestroy();
     }
