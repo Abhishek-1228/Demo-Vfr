@@ -9,7 +9,7 @@
         app:showAsAction="ifRoom" />
 
     <item
-        android:id="@+id/buildingplugin"
+        android:id="@+id/flyordrive"
         android:icon="?android:attr/textSelectHandleLeft"
         android:title="buildingplugin"
         app:showAsAction="ifRoom" />

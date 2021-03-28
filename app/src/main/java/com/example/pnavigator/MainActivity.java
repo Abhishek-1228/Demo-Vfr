@@ -114,6 +114,10 @@ private LocationEngine locationEngine;
     private FileOutputStream fos;
     private File logs;
 
+    private boolean fly=true;
+//   Handler handler;
+//    Runnable runnable;
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
 
@@ -129,16 +133,25 @@ private LocationEngine locationEngine;
         switch (item.getItemId()){
             case R.id.action_favorite:
                 back();
-            case R.id.buildingplugin:
-                buildingplugin();
+            case R.id.flyordrive:
+                driveandfly();
             default:
                 return super.onOptionsItemSelected(item);
-
         }
+    }
+    Handler handler = new Handler();
+    public  void driveandfly()
+    {
+        fly=!fly;
+        if(!fly)
+           handler.removeCallbacksAndMessages(null);
+        else
+            handler.postDelayed(runnable,3000);
+        Log.d("FLY",String.valueOf(fly));
+
 
     }
 
-    Handler handler = new Handler();
     Runnable runnable = new Runnable() {
         @Override
         public void run() {
@@ -146,7 +159,10 @@ private LocationEngine locationEngine;
                 @Override
                 public void run() {
                     back();
+                    Log.d("FLYin",String.valueOf(fly));
+
                     handler.postDelayed(runnable, 3000);
+
                 }
             });
         }
@@ -170,6 +186,9 @@ private LocationEngine locationEngine;
         mapView.getMapAsync(this);
 
         createLogFile();
+//        Log.d("FLYINCREATE",String.valueOf(fly));
+
+
     }
 
     @Override
@@ -227,9 +246,11 @@ private LocationEngine locationEngine;
             }
         });
 
-
+//        if(handler!=null && fly)
+//            Log.d("flyinmain",String.valueOf(fly));
         handler.postDelayed(runnable, 2000);
 //        Toast.makeText(MainActivity.this, (int) map.getCameraPosition().zoom, Toast.LENGTH_SHORT).show();
+
     }
 
 
