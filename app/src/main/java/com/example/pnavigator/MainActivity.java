@@ -133,11 +133,14 @@ private LocationEngine locationEngine;
         switch (item.getItemId()){
             case R.id.action_favorite:
                 back();
+                break;
             case R.id.flyordrive:
                 driveandfly();
+                break;
             default:
                 return super.onOptionsItemSelected(item);
         }
+        return  super.onOptionsItemSelected(item);
     }
     Handler handler = new Handler();
     public  void driveandfly()
@@ -148,8 +151,6 @@ private LocationEngine locationEngine;
         else
             handler.postDelayed(runnable,3000);
         Log.d("FLY",String.valueOf(fly));
-
-
     }
 
     Runnable runnable = new Runnable() {

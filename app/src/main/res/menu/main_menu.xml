@@ -8,10 +8,11 @@
         android:title="hi"
         app:showAsAction="ifRoom" />
 
+
     <item
         android:id="@+id/flyordrive"
-        android:icon="?android:attr/textSelectHandleLeft"
-        android:title="buildingplugin"
-        app:showAsAction="ifRoom" />
+        android:icon="@drawable/mapbox_ic_arrow_head"
+        android:title="Fly Or Not"
+        app:showAsAction="ifRoom"/>
 
 </menu>
