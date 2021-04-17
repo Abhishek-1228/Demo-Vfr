@@ -276,7 +276,7 @@ private LocationEngine locationEngine;
 
     private void addUserLocations() {
         home = CarmenFeature.builder().text("Bada Bazar ")
-                .geometry(Point.fromLngLat(25.4484,  78.5685))
+                .geometry(Point.fromLngLat(78.5685,  25.4484))
                 .placeName("Jhansi")
                 .id("mapbox-sf")
                 .properties(new JsonObject())
