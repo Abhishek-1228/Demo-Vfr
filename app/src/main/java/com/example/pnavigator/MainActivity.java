@@ -135,6 +135,10 @@ private LocationEngine locationEngine;
                 back();
                 break;
             case R.id.flyordrive:
+                if(fly)
+                item.setTitle("Start");
+                else
+                    item.setTitle("Stop");
                 driveandfly();
                 break;
             default:
