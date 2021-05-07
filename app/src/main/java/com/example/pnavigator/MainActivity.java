@@ -147,9 +147,13 @@ private LocationEngine locationEngine;
                 else
                     item.setTitle("Stop");
                 driveandfly();
+                break;
             case R.id.buildingplugin:
+                if(flag==1)
+                    item.setTitle("ON");
+                else
+                    item.setTitle("OFF");
                 buildingplugin();
-
                 break;
             default:
                 return super.onOptionsItemSelected(item);
