@@ -16,4 +16,12 @@
         app:showAsAction="never"
         android:title="Stop"/>
 
+    <item
+        android:id="@+id/buildingplugin"
+        android:icon="@drawable/mapbox_ic_arrow_head"
+        app:showAsAction="never"
+        android:title="OFF"/>
+
+
+
 </menu>
