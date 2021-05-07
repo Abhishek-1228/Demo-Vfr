@@ -121,6 +121,10 @@ private LocationEngine locationEngine;
     private FileOutputStream fos;
     private File logs;
 
+    private boolean fly=true;
+//   Handler handler;
+//    Runnable runnable;
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
 
@@ -137,18 +141,32 @@ private LocationEngine locationEngine;
             case R.id.action_favorite:
                 back();
                 break;
+            case R.id.flyordrive:
+                if(fly)
+                item.setTitle("Start");
+                else
+                    item.setTitle("Stop");
+                driveandfly();
             case R.id.buildingplugin:
                 buildingplugin();
+
                 break;
             default:
                 return super.onOptionsItemSelected(item);
-
         }
-        return super.onOptionsItemSelected(item);
-
+        return  super.onOptionsItemSelected(item);
+    }
+    Handler handler = new Handler();
+    public  void driveandfly()
+    {
+        fly=!fly;
+        if(!fly)
+           handler.removeCallbacksAndMessages(null);
+        else
+            handler.postDelayed(runnable,3000);
+        Log.d("FLY",String.valueOf(fly));
     }
 
-    Handler handler = new Handler();
     Runnable runnable = new Runnable() {
         @Override
         public void run() {
@@ -156,7 +174,10 @@ private LocationEngine locationEngine;
                 @Override
                 public void run() {
                     back();
+                    Log.d("FLYin",String.valueOf(fly));
+
                     handler.postDelayed(runnable, 3000);
+
                 }
             });
         }
@@ -238,9 +259,11 @@ private LocationEngine locationEngine;
             }
         });
 
-
+//        if(handler!=null && fly)
+//            Log.d("flyinmain",String.valueOf(fly));
         handler.postDelayed(runnable, 2000);
 //        Toast.makeText(MainActivity.this, (int) map.getCameraPosition().zoom, Toast.LENGTH_SHORT).show();
+
     }
 
 
@@ -265,7 +288,7 @@ private LocationEngine locationEngine;
 
     private void addUserLocations() {
         home = CarmenFeature.builder().text("Bada Bazar ")
-                .geometry(Point.fromLngLat(25.4484,  78.5685))
+                .geometry(Point.fromLngLat(78.5685,  25.4484))
                 .placeName("Jhansi")
                 .id("mapbox-sf")
                 .properties(new JsonObject())
