@@ -70,11 +70,16 @@ import java.util.List;
 import timber.log.Timber;
 import com.mapbox.mapboxsdk.plugins.places.autocomplete.PlaceAutocomplete;
 import com.mapbox.mapboxsdk.plugins.places.autocomplete.model.PlaceOptions;
+import com.mapbox.mapboxsdk.style.layers.Layer;
+import com.mapbox.mapboxsdk.style.layers.Property;
+import com.mapbox.mapboxsdk.style.layers.PropertyFactory;
+import com.mapbox.mapboxsdk.style.layers.PropertyValue;
 import com.mapbox.mapboxsdk.style.layers.SymbolLayer;
 import com.mapbox.mapboxsdk.style.sources.GeoJsonSource;
 
 import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.iconImage;
 import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.iconOffset;
+import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.visibility;
 
 public class MainActivity extends AppCompatActivity  implements
         OnMapReadyCallback, PermissionsListener {
@@ -109,6 +114,8 @@ private LocationEngine locationEngine;
     private PermissionsManager permissionsManager;
 
     private BuildingPlugin buildingPlugin;
+    private Layer buildingLayer;
+    private Layer extrusionLayer;
 
     private int flag = 0;
     private FileOutputStream fos;
@@ -129,12 +136,15 @@ private LocationEngine locationEngine;
         switch (item.getItemId()){
             case R.id.action_favorite:
                 back();
+                break;
             case R.id.buildingplugin:
                 buildingplugin();
+                break;
             default:
                 return super.onOptionsItemSelected(item);
 
         }
+        return super.onOptionsItemSelected(item);
 
     }
 
@@ -169,7 +179,6 @@ private LocationEngine locationEngine;
         mapView.onCreate(savedInstanceState);
         mapView.getMapAsync(this);
 
-        createLogFile();
     }
 
     @Override
@@ -217,6 +226,8 @@ private LocationEngine locationEngine;
                 buildingPlugin.setMinZoomLevel(20f);
                 buildingPlugin.setVisibility(true);
                 flag = 1;
+                buildingLayer = style.getLayer("mapbox-android-plugin-3d-buildings");
+                extrusionLayer = style.getLayer("building-extrusion");
             }
         });
 
@@ -740,48 +751,6 @@ private LocationEngine locationEngine;
 
     }
 
-    public void createFile(){
-        try {
-            Process process = Runtime.getRuntime().exec("logcat -d");
-            BufferedReader bufferedReader = new BufferedReader(
-                    new InputStreamReader(process.getInputStream()));
-
-            StringBuilder log = new StringBuilder();
-            String line;
-            while ((line = bufferedReader.readLine()) != null) {
-                log.append(line + "\n");
-            }
-
-            appendLog(log.toString());
-            Toast.makeText(this,"hi",Toast.LENGTH_LONG).show();
-
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public void appendLog(String text) {
-
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy.MM.dd  'at' HH:mm:ss");
-            String currentDateTime = sdf.format(new Date());
-
-            try {
-                logs = new File(getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "LOGS_" + currentDateTime + "_.txt");
-                fos = new FileOutputStream(logs);
-                fos.write(text.getBytes());
-                fos.close();
-                Toast.makeText(this, "Saved", Toast.LENGTH_SHORT).show();
-            } catch (IOException e) {
-                Toast.makeText(this, "ERROR", Toast.LENGTH_LONG).show();
-                e.printStackTrace();
-            }
-
-    }
-
-    private void createLogFile(){
-
-    }
 
     private void buildingplugin(){
 
@@ -789,7 +758,17 @@ private LocationEngine locationEngine;
             map.getStyle(new Style.OnStyleLoaded() {
                 @Override
                 public void onStyleLoaded(@NonNull Style style) {
-                    buildingPlugin.setVisibility(false);
+                    for (Layer layer : style.getLayers()) {
+                        Log.i("parnish","layer: " + layer.getId() + " | detached: " + layer.isDetached());
+                    }
+
+
+                   buildingLayer.setProperties(visibility(Property.NONE));
+                   extrusionLayer.setProperties(visibility(Property.NONE));
+
+
+
+
                 }
             });
             flag = 0;
@@ -798,12 +777,19 @@ private LocationEngine locationEngine;
         else{
             map.getStyle(new Style.OnStyleLoaded() {
                 @Override
-                public void onStyleLoaded(@NonNull Style style) {
-                    buildingPlugin.setVisibility(true);
+                public void onStyleLoaded(@NonNull Style style){
+
+                    for (Layer layer : style.getLayers()) {
+                        Log.i("parnish","layer: " + layer.getId() + " | detached: " + layer.isDetached());
+                    }
+
+                    buildingLayer.setProperties(visibility(Property.VISIBLE));
+                    extrusionLayer.setProperties(visibility(Property.VISIBLE));
+
                 }
             });
             flag = 1;
-            //Toast.makeText(this, "TRUE", Toast.LENGTH_LONG).show();
+
 
         }
 
