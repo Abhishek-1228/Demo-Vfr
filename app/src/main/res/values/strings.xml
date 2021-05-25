@@ -21,4 +21,7 @@
     <string name="navigate_neutral_button_title">Delete</string>
     <string name="navigate_negative_button_title">Cancel</string>
     <string name="region_name" formatted="true">error</string>
+    <string name="query_feature_no_properties_found">No features detected</string>
+    <string name="query_feature_marker_title">Properties</string>
+    <string name="click_on_map_instruction">Clicked</string>
 </resources>
