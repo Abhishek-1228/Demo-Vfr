@@ -2,16 +2,21 @@ package com.example.pnavigator;
 
 // Classes needed to add the location engine
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.PointF;
+import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -19,13 +24,17 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mapbox.android.core.location.LocationEngine;
+import com.mapbox.android.core.location.LocationEngineProvider;
+import com.mapbox.android.core.location.LocationEngineRequest;
 import com.mapbox.android.core.permissions.PermissionsListener;
 import com.mapbox.android.core.permissions.PermissionsManager;
 import com.mapbox.api.geocoding.v5.models.CarmenFeature;
@@ -33,6 +42,7 @@ import com.mapbox.geojson.Feature;
 import com.mapbox.geojson.FeatureCollection;
 import com.mapbox.geojson.Point;
 import com.mapbox.mapboxsdk.Mapbox;
+import com.mapbox.mapboxsdk.annotations.BubbleLayout;
 import com.mapbox.mapboxsdk.camera.CameraPosition;
 import com.mapbox.mapboxsdk.camera.CameraUpdateFactory;
 import com.mapbox.mapboxsdk.geometry.LatLng;
@@ -52,69 +62,25 @@ import com.mapbox.mapboxsdk.offline.OfflineRegionError;
 import com.mapbox.mapboxsdk.offline.OfflineRegionStatus;
 import com.mapbox.mapboxsdk.offline.OfflineTilePyramidRegionDefinition;
 import com.mapbox.mapboxsdk.plugins.building.BuildingPlugin;
-
-import org.jetbrains.annotations.NotNull;
-import org.json.JSONObject;
-
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.List;
-
-import timber.log.Timber;
 import com.mapbox.mapboxsdk.plugins.places.autocomplete.PlaceAutocomplete;
 import com.mapbox.mapboxsdk.plugins.places.autocomplete.model.PlaceOptions;
 import com.mapbox.mapboxsdk.style.layers.Layer;
 import com.mapbox.mapboxsdk.style.layers.Property;
-import com.mapbox.mapboxsdk.style.layers.PropertyFactory;
-import com.mapbox.mapboxsdk.style.layers.PropertyValue;
 import com.mapbox.mapboxsdk.style.layers.SymbolLayer;
 import com.mapbox.mapboxsdk.style.sources.GeoJsonSource;
 
-import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.iconImage;
-import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.iconOffset;
-import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.visibility;
+import org.jetbrains.annotations.NotNull;
+import org.json.JSONObject;
 
-
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.PointF;
-import android.os.AsyncTask;
-import android.os.Bundle;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.widget.TextView;
-import android.widget.Toast;
-
-import com.google.gson.JsonElement;
-import com.mapbox.geojson.Feature;
-import com.mapbox.geojson.FeatureCollection;
-//import com.mapbox.mapboxandroiddemo.R;
-import com.mapbox.mapboxsdk.Mapbox;
-import com.mapbox.mapboxsdk.annotations.BubbleLayout;
-import com.mapbox.mapboxsdk.geometry.LatLng;
-import com.mapbox.mapboxsdk.maps.MapView;
-import com.mapbox.mapboxsdk.maps.MapboxMap;
-import com.mapbox.mapboxsdk.maps.OnMapReadyCallback;
-import com.mapbox.mapboxsdk.maps.Style;
-import com.mapbox.mapboxsdk.style.layers.SymbolLayer;
-import com.mapbox.mapboxsdk.style.sources.GeoJsonSource;
-
+import java.io.File;
+import java.io.FileOutputStream;
 import java.lang.ref.WeakReference;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
+import timber.log.Timber;
 
 import static com.mapbox.mapboxsdk.style.layers.Property.ICON_ANCHOR_BOTTOM;
 import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.iconAllowOverlap;
@@ -122,6 +88,7 @@ import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.iconAnchor;
 import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.iconIgnorePlacement;
 import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.iconImage;
 import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.iconOffset;
+import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.visibility;
 
 
 public class MainActivity extends AppCompatActivity  implements
@@ -172,7 +139,8 @@ private LocationEngine locationEngine;
     private static final String MARKER_LAYER_ID = "MARKER_LAYER_ID";
     private static final String CALLOUT_LAYER_ID = "CALLOUT_LAYER_ID";
     private GeoJsonSource source;
-
+    private long DEFAULT_INTERVAL_IN_MILLISECONDS = 1000L;
+    private long DEFAULT_MAX_WAIT_TIME = DEFAULT_INTERVAL_IN_MILLISECONDS * 5;
 //   Handler handler;
 //    Runnable runnable;
 
@@ -263,13 +231,16 @@ private LocationEngine locationEngine;
         mapboxMap.setStyle(new Style.Builder().fromUri("mapbox://styles/abhishek1228/ckk7w0wf60sjf17qu4kwerp97/draft"), new Style.OnStyleLoaded() {
             @Override
             public void onStyleLoaded(@NonNull Style style) {
+
+                enableLocationComponent(style);
+
                 setUpData();
 
                 mapboxMap.addOnMapClickListener(MainActivity.this);
 //                Toast.makeText(MainActivity.this,
 //                        getString(R.string.click_on_map_instruction), Toast.LENGTH_SHORT).show();
 
-                enableLocationComponent(style);
+
 
                 initSearchFab();
 
@@ -703,7 +674,7 @@ private LocationEngine locationEngine;
     }
 
 
-    //    @SuppressLint("StringFormatInvalid")
+        @SuppressLint("StringFormatInvalid")
     private String getRegionName(OfflineRegion offlineRegion) {
         // Get the region name from the offline region metadata
         String regionName;
@@ -757,6 +728,7 @@ private LocationEngine locationEngine;
         Toast.makeText(MainActivity.this, message, Toast.LENGTH_LONG).show();
     }
         @SuppressWarnings( {"MissingPermission"})
+
     private void enableLocationComponent(@NonNull Style loadedMapStyle) {
 // Check if permissions are enabled and if not request
         if (PermissionsManager.areLocationPermissionsGranted(this)) {
@@ -788,20 +760,18 @@ private LocationEngine locationEngine;
 
 
         } else {
+            Log.i("Disabled","Location disabled");
              permissionsManager = new PermissionsManager(this);
             permissionsManager.requestLocationPermissions(this);
         }
     }
-
-
-
-
 
     @Override
     public void onExplanationNeeded(List<String> permissionsToExplain) {
         Toast.makeText(this, R.string.user_location_permission_explanation, Toast.LENGTH_LONG).show();
 
     }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         permissionsManager.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -823,19 +793,22 @@ private LocationEngine locationEngine;
 
     }
 
+
     public void back(){
+        Log.d("in back","out if");
+        if(map.getLocationComponent().isLocationComponentActivated() && map.getLocationComponent().getLastKnownLocation()!=null) {
 
-        CameraPosition back = new CameraPosition.Builder()
-                .target(new LatLng(map.getLocationComponent().getLastKnownLocation().getLatitude(),map.getLocationComponent().getLastKnownLocation().getLongitude()))
-                .zoom(map.getCameraPosition().zoom)
-                .tilt(map.getCameraPosition().tilt)
-                .build();
-
-        map.animateCamera(CameraUpdateFactory.newCameraPosition(back));
+            CameraPosition back = new CameraPosition.Builder()
+                    .target(new LatLng(map.getLocationComponent().getLastKnownLocation().getLatitude(), map.getLocationComponent().getLastKnownLocation().getLongitude()))
+                    .zoom(map.getCameraPosition().zoom)
+                    .tilt(map.getCameraPosition().tilt)
+                    .build();
+            Log.d("in back","in if");
+            map.animateCamera(CameraUpdateFactory.newCameraPosition(back));
+        }
 
 
     }
-
 
     private void buildingplugin(){
 
@@ -968,8 +941,10 @@ private LocationEngine locationEngine;
 
             if (feature.properties() != null) {
                 for (Map.Entry<String, JsonElement> entry : feature.properties().entrySet()) {
-                    stringBuilder.append(String.format("%s - %s", entry.getKey(), entry.getValue()));
-                    stringBuilder.append(System.getProperty("line.separator"));
+                    if(entry.getKey().equalsIgnoreCase("name_en")==true) {
+                        stringBuilder.append(String.format("%s - %s", entry.getKey(), entry.getValue()));
+                        stringBuilder.append(System.getProperty("line.separator"));
+                    }
                 }
                 new GenerateViewIconTask(MainActivity.this).execute(FeatureCollection.fromFeature(feature));
             }
@@ -1034,8 +1009,10 @@ private LocationEngine locationEngine;
 
                     if (featureAtMapClickPoint.properties() != null) {
                         for (Map.Entry<String, JsonElement> entry : featureAtMapClickPoint.properties().entrySet()) {
-                            stringBuilder.append(String.format("%s - %s", entry.getKey(), entry.getValue()));
-                            stringBuilder.append(System.getProperty("line.separator"));
+                            if(entry.getKey().equalsIgnoreCase("name_en")==true || entry.getKey().equalsIgnoreCase("height")==true) {
+                                stringBuilder.append(String.format("%s - %s", entry.getKey(), entry.getValue()));
+                                stringBuilder.append(System.getProperty("line.separator"));
+                            }
                         }
 
                         TextView propertiesListTextView = bubbleLayout.findViewById(R.id.info_window_feature_properties_list);
