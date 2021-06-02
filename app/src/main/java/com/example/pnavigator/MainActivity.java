@@ -223,6 +223,8 @@ private LocationEngine locationEngine;
         mapView.onCreate(savedInstanceState);
         mapView.getMapAsync(this);
 
+
+
     }
 
     @Override
@@ -241,7 +243,7 @@ private LocationEngine locationEngine;
 //                        getString(R.string.click_on_map_instruction), Toast.LENGTH_SHORT).show();
 
 
-
+                driveandfly();
                 initSearchFab();
 
                 addUserLocations();
