@@ -126,6 +126,9 @@ private LocationEngine locationEngine;
     private BuildingPlugin buildingPlugin;
     private Layer buildingLayer;
     private Layer extrusionLayer;
+    private Layer marker_layer;
+    private Layer callout_layer;
+    private Layer symbol_layer;
 
     private int flag = 0;
     private FileOutputStream fos;
@@ -224,7 +227,6 @@ private LocationEngine locationEngine;
         mapView.getMapAsync(this);
 
 
-
     }
 
     @Override
@@ -235,6 +237,7 @@ private LocationEngine locationEngine;
             public void onStyleLoaded(@NonNull Style style) {
 
                 enableLocationComponent(style);
+                Log.d("zoom", String.valueOf(map.getMinZoomLevel()));
 
                 setUpData();
 
@@ -279,11 +282,14 @@ private LocationEngine locationEngine;
                     }
                 });
                 buildingPlugin = new BuildingPlugin(mapView, map, style);
-                buildingPlugin.setMinZoomLevel(20f);
+                buildingPlugin.setMinZoomLevel(25.5f);
                 buildingPlugin.setVisibility(true);
                 flag = 1;
                 buildingLayer = style.getLayer("mapbox-android-plugin-3d-buildings");
                 extrusionLayer = style.getLayer("building-extrusion");
+                marker_layer=style.getLayer("MARKER_LAYER_ID");
+                callout_layer=style.getLayer("CALLOUT_LAYER_ID");
+                symbol_layer=style.getLayer("SYMBOL_LAYER_ID");
             }
         });
 
@@ -948,9 +954,28 @@ private LocationEngine locationEngine;
                         stringBuilder.append(System.getProperty("line.separator"));
                     }
                 }
+                if(stringBuilder.capacity()!=0)
                 new GenerateViewIconTask(MainActivity.this).execute(FeatureCollection.fromFeature(feature));
+                marker_layer.setProperties(visibility(Property.VISIBLE));
+                callout_layer.setProperties(visibility(Property.VISIBLE));
+                symbol_layer.setProperties(visibility(Property.VISIBLE));
             }
         } else {
+
+            map.getStyle(new Style.OnStyleLoaded() {
+                @Override
+                public void onStyleLoaded(@NonNull Style style){
+
+                    for (Layer layer : style.getLayers()) {
+                        Log.d("parnish","layer: " + layer.getId() + " | detached: " + layer.isDetached());
+                    }
+
+
+                }
+            });
+            marker_layer.setProperties(visibility(Property.NONE));
+            callout_layer.setProperties(visibility(Property.NONE));
+            symbol_layer.setProperties(visibility(Property.NONE));
             Toast.makeText(this, getString(R.string.query_feature_no_properties_found), Toast.LENGTH_SHORT).show();
         }
         return true;
