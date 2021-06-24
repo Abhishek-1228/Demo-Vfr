@@ -14,7 +14,7 @@
         android:id="@+id/flyordrive"
         android:icon="@drawable/mapbox_ic_arrow_head"
         app:showAsAction="never"
-        android:title="Stop"/>
+        android:title="Start"/>
 
     <item
         android:id="@+id/buildingplugin"

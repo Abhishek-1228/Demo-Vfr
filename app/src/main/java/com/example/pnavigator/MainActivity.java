@@ -2,16 +2,21 @@ package com.example.pnavigator;
 
 // Classes needed to add the location engine
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.PointF;
+import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -19,13 +24,17 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mapbox.android.core.location.LocationEngine;
+import com.mapbox.android.core.location.LocationEngineProvider;
+import com.mapbox.android.core.location.LocationEngineRequest;
 import com.mapbox.android.core.permissions.PermissionsListener;
 import com.mapbox.android.core.permissions.PermissionsManager;
 import com.mapbox.api.geocoding.v5.models.CarmenFeature;
@@ -33,6 +42,7 @@ import com.mapbox.geojson.Feature;
 import com.mapbox.geojson.FeatureCollection;
 import com.mapbox.geojson.Point;
 import com.mapbox.mapboxsdk.Mapbox;
+import com.mapbox.mapboxsdk.annotations.BubbleLayout;
 import com.mapbox.mapboxsdk.camera.CameraPosition;
 import com.mapbox.mapboxsdk.camera.CameraUpdateFactory;
 import com.mapbox.mapboxsdk.geometry.LatLng;
@@ -52,37 +62,37 @@ import com.mapbox.mapboxsdk.offline.OfflineRegionError;
 import com.mapbox.mapboxsdk.offline.OfflineRegionStatus;
 import com.mapbox.mapboxsdk.offline.OfflineTilePyramidRegionDefinition;
 import com.mapbox.mapboxsdk.plugins.building.BuildingPlugin;
-
-import org.jetbrains.annotations.NotNull;
-import org.json.JSONObject;
-
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.List;
-
-import timber.log.Timber;
 import com.mapbox.mapboxsdk.plugins.places.autocomplete.PlaceAutocomplete;
 import com.mapbox.mapboxsdk.plugins.places.autocomplete.model.PlaceOptions;
 import com.mapbox.mapboxsdk.style.layers.Layer;
 import com.mapbox.mapboxsdk.style.layers.Property;
-import com.mapbox.mapboxsdk.style.layers.PropertyFactory;
-import com.mapbox.mapboxsdk.style.layers.PropertyValue;
 import com.mapbox.mapboxsdk.style.layers.SymbolLayer;
 import com.mapbox.mapboxsdk.style.sources.GeoJsonSource;
 
+import org.jetbrains.annotations.NotNull;
+import org.json.JSONObject;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.lang.ref.WeakReference;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import timber.log.Timber;
+
+import static com.mapbox.mapboxsdk.style.layers.Property.ICON_ANCHOR_BOTTOM;
+import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.iconAllowOverlap;
+import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.iconAnchor;
+import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.iconIgnorePlacement;
 import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.iconImage;
 import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.iconOffset;
 import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.visibility;
 
+
 public class MainActivity extends AppCompatActivity  implements
-        OnMapReadyCallback, PermissionsListener {
+        OnMapReadyCallback, PermissionsListener,MapboxMap.OnMapClickListener  {
 
 //    private static final String TAG = "OffManActivity";
 // Variables needed to add the location engine
@@ -116,12 +126,24 @@ private LocationEngine locationEngine;
     private BuildingPlugin buildingPlugin;
     private Layer buildingLayer;
     private Layer extrusionLayer;
+    private Layer marker_layer;
+    private Layer callout_layer;
+    private Layer symbol_layer;
 
     private int flag = 0;
     private FileOutputStream fos;
     private File logs;
 
     private boolean fly=true;
+
+    private static final String GEOJSON_SOURCE_ID = "GEOJSON_SOURCE_ID";
+    private static final String MARKER_IMAGE_ID = "MARKER_IMAGE_ID";
+    private static final String CALLOUT_IMAGE_ID = "CALLOUT_IMAGE_ID";
+    private static final String MARKER_LAYER_ID = "MARKER_LAYER_ID";
+    private static final String CALLOUT_LAYER_ID = "CALLOUT_LAYER_ID";
+    private GeoJsonSource source;
+    private long DEFAULT_INTERVAL_IN_MILLISECONDS = 1000L;
+    private long DEFAULT_MAX_WAIT_TIME = DEFAULT_INTERVAL_IN_MILLISECONDS * 5;
 //   Handler handler;
 //    Runnable runnable;
 
@@ -204,6 +226,7 @@ private LocationEngine locationEngine;
         mapView.onCreate(savedInstanceState);
         mapView.getMapAsync(this);
 
+
     }
 
     @Override
@@ -212,7 +235,18 @@ private LocationEngine locationEngine;
         mapboxMap.setStyle(new Style.Builder().fromUri("mapbox://styles/abhishek1228/ckk7w0wf60sjf17qu4kwerp97/draft"), new Style.OnStyleLoaded() {
             @Override
             public void onStyleLoaded(@NonNull Style style) {
+
                 enableLocationComponent(style);
+                Log.d("zoom", String.valueOf(map.getMinZoomLevel()));
+
+                setUpData();
+
+                mapboxMap.addOnMapClickListener(MainActivity.this);
+//                Toast.makeText(MainActivity.this,
+//                        getString(R.string.click_on_map_instruction), Toast.LENGTH_SHORT).show();
+
+
+                driveandfly();
                 initSearchFab();
 
                 addUserLocations();
@@ -248,11 +282,14 @@ private LocationEngine locationEngine;
                     }
                 });
                 buildingPlugin = new BuildingPlugin(mapView, map, style);
-                buildingPlugin.setMinZoomLevel(20f);
+                buildingPlugin.setMinZoomLevel(25.5f);
                 buildingPlugin.setVisibility(true);
                 flag = 1;
                 buildingLayer = style.getLayer("mapbox-android-plugin-3d-buildings");
                 extrusionLayer = style.getLayer("building-extrusion");
+                marker_layer=style.getLayer("MARKER_LAYER_ID");
+                callout_layer=style.getLayer("CALLOUT_LAYER_ID");
+                symbol_layer=style.getLayer("SYMBOL_LAYER_ID");
             }
         });
 
@@ -645,7 +682,7 @@ private LocationEngine locationEngine;
     }
 
 
-    //    @SuppressLint("StringFormatInvalid")
+        @SuppressLint("StringFormatInvalid")
     private String getRegionName(OfflineRegion offlineRegion) {
         // Get the region name from the offline region metadata
         String regionName;
@@ -699,6 +736,7 @@ private LocationEngine locationEngine;
         Toast.makeText(MainActivity.this, message, Toast.LENGTH_LONG).show();
     }
         @SuppressWarnings( {"MissingPermission"})
+
     private void enableLocationComponent(@NonNull Style loadedMapStyle) {
 // Check if permissions are enabled and if not request
         if (PermissionsManager.areLocationPermissionsGranted(this)) {
@@ -730,20 +768,18 @@ private LocationEngine locationEngine;
 
 
         } else {
+            Log.i("Disabled","Location disabled");
              permissionsManager = new PermissionsManager(this);
             permissionsManager.requestLocationPermissions(this);
         }
     }
-
-
-
-
 
     @Override
     public void onExplanationNeeded(List<String> permissionsToExplain) {
         Toast.makeText(this, R.string.user_location_permission_explanation, Toast.LENGTH_LONG).show();
 
     }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         permissionsManager.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -765,19 +801,22 @@ private LocationEngine locationEngine;
 
     }
 
+
     public void back(){
+        Log.d("in back","out if");
+        if(map.getLocationComponent().isLocationComponentActivated() && map.getLocationComponent().getLastKnownLocation()!=null) {
 
-        CameraPosition back = new CameraPosition.Builder()
-                .target(new LatLng(map.getLocationComponent().getLastKnownLocation().getLatitude(),map.getLocationComponent().getLastKnownLocation().getLongitude()))
-                .zoom(map.getCameraPosition().zoom)
-                .tilt(map.getCameraPosition().tilt)
-                .build();
-
-        map.animateCamera(CameraUpdateFactory.newCameraPosition(back));
+            CameraPosition back = new CameraPosition.Builder()
+                    .target(new LatLng(map.getLocationComponent().getLastKnownLocation().getLatitude(), map.getLocationComponent().getLastKnownLocation().getLongitude()))
+                    .zoom(map.getCameraPosition().zoom)
+                    .tilt(map.getCameraPosition().tilt)
+                    .build();
+            Log.d("in back","in if");
+            map.animateCamera(CameraUpdateFactory.newCameraPosition(back));
+        }
 
 
     }
-
 
     private void buildingplugin(){
 
@@ -822,5 +861,244 @@ private LocationEngine locationEngine;
 
 
     }
+
+    public void setUpData() {
+        if (map != null) {
+            map.getStyle(style -> {
+                setupSource(style);
+                setUpClickLocationIconImage(style);
+                setUpClickLocationMarkerLayer(style);
+                setUpInfoWindowLayer(style);
+            });
+        }
+    }
+
+    /**
+     * Adds the GeoJSON source to the map
+     */
+    private void setupSource(@NonNull Style loadedStyle) {
+        source = new GeoJsonSource(GEOJSON_SOURCE_ID);
+        loadedStyle.addSource(source);
+    }
+
+    /**
+     * Adds the marker image to the map for use as a SymbolLayer icon
+     */
+    private void setUpClickLocationIconImage(@NonNull Style loadedStyle) {
+        loadedStyle.addImage(MARKER_IMAGE_ID, BitmapFactory.decodeResource(
+                this.getResources(), R.drawable.map_icon));
+    }
+
+    /**
+     * Needed to show the Feature properties info window.
+     */
+    private void refreshSource(Feature featureAtClickPoint) {
+        if (source != null) {
+            source.setGeoJson(featureAtClickPoint);
+        }
+    }
+
+    /**
+     * Adds a SymbolLayer to the map to show the click location marker icon.
+     */
+    private void setUpClickLocationMarkerLayer(@NonNull Style loadedStyle) {
+        loadedStyle.addLayer(new SymbolLayer(MARKER_LAYER_ID, GEOJSON_SOURCE_ID)
+                .withProperties(
+                        iconImage(MARKER_IMAGE_ID),
+                        iconAllowOverlap(true),
+                        iconIgnorePlacement(true),
+                        iconOffset(new Float[] {0f, -8f})
+                ));
+    }
+
+    /**
+     * Adds a SymbolLayer to the map to show the Feature properties info window.
+     */
+    private void setUpInfoWindowLayer(@NonNull Style loadedStyle) {
+        loadedStyle.addLayer(new SymbolLayer(CALLOUT_LAYER_ID, GEOJSON_SOURCE_ID)
+                .withProperties(
+// show image with id title based on the value of the name feature property
+                        iconImage(CALLOUT_IMAGE_ID),
+
+// set anchor of icon to bottom-left
+                        iconAnchor(ICON_ANCHOR_BOTTOM),
+
+// prevent the feature property window icon from being visible even
+// if it collides with other previously drawn symbols
+                        iconAllowOverlap(false),
+
+// prevent other symbols from being visible even if they collide with the feature property window icon
+                        iconIgnorePlacement(false),
+
+// offset the info window to be above the marker
+                        iconOffset(new Float[] {-2f, -28f})
+                ));
+    }
+
+    /**
+     * This method handles click events for SymbolLayer symbols.
+     *
+     * @param screenPoint the point on screen clicked
+     */
+    private boolean handleClickIcon(PointF screenPoint) {
+        List<Feature> features = map.queryRenderedFeatures(screenPoint);
+        if (!features.isEmpty()) {
+            Feature feature = features.get(0);
+
+            StringBuilder stringBuilder = new StringBuilder();
+
+            if (feature.properties() != null) {
+                for (Map.Entry<String, JsonElement> entry : feature.properties().entrySet()) {
+                    if(entry.getKey().equalsIgnoreCase("name_en")==true) {
+                        stringBuilder.append(String.format("%s - %s", entry.getKey(), entry.getValue()));
+                        stringBuilder.append(System.getProperty("line.separator"));
+                    }
+                }
+                if(stringBuilder.capacity()!=0)
+                new GenerateViewIconTask(MainActivity.this).execute(FeatureCollection.fromFeature(feature));
+                marker_layer.setProperties(visibility(Property.VISIBLE));
+                callout_layer.setProperties(visibility(Property.VISIBLE));
+                symbol_layer.setProperties(visibility(Property.VISIBLE));
+            }
+        } else {
+
+            map.getStyle(new Style.OnStyleLoaded() {
+                @Override
+                public void onStyleLoaded(@NonNull Style style){
+
+                    for (Layer layer : style.getLayers()) {
+                        Log.d("parnish","layer: " + layer.getId() + " | detached: " + layer.isDetached());
+                    }
+
+
+                }
+            });
+            marker_layer.setProperties(visibility(Property.NONE));
+            callout_layer.setProperties(visibility(Property.NONE));
+            symbol_layer.setProperties(visibility(Property.NONE));
+            Toast.makeText(this, getString(R.string.query_feature_no_properties_found), Toast.LENGTH_SHORT).show();
+        }
+        return true;
+    }
+
+    @Override
+    public boolean onMapClick(@NonNull LatLng point) {
+        return handleClickIcon(map.getProjection().toScreenLocation(point));
+    }
+
+    /**
+     * Invoked when the bitmap has been generated from a view.
+     */
+    public void setImageGenResults(HashMap<String, Bitmap> imageMap) {
+        if (map != null) {
+            map.getStyle(style -> {
+                style.addImages(imageMap);
+            });
+        }
+    }
+
+    /**
+     * AsyncTask to generate Bitmap from Views to be used as iconImage in a SymbolLayer.
+     * <p>
+     * Call be optionally be called to update the underlying data source after execution.
+     * </p>
+     * <p>
+     * Generating Views on background thread since we are not going to be adding them to the view hierarchy.
+     * </p>
+     */
+    private static class GenerateViewIconTask extends AsyncTask<FeatureCollection, Void, HashMap<String, Bitmap>> {
+
+        private final WeakReference<MainActivity> activityRef;
+        private Feature featureAtMapClickPoint;
+
+        GenerateViewIconTask(MainActivity activity) {
+            this.activityRef = new WeakReference<>(activity);
+        }
+
+        @SuppressWarnings("WrongThread")
+        @Override
+        protected HashMap<String, Bitmap> doInBackground(FeatureCollection... params) {
+            MainActivity activity = activityRef.get();
+            HashMap<String, Bitmap> imagesMap = new HashMap<>();
+            if (activity != null) {
+                LayoutInflater inflater = LayoutInflater.from(activity);
+
+                if (params[0].features() != null) {
+                    featureAtMapClickPoint = params[0].features().get(0);
+
+                    StringBuilder stringBuilder = new StringBuilder();
+
+                    BubbleLayout bubbleLayout = (BubbleLayout) inflater.inflate(
+                            R.layout.activity_query_feature_window_symbol_layer, null);
+
+                    TextView titleTextView = bubbleLayout.findViewById(R.id.info_window_title);
+                    titleTextView.setText(activity.getString(R.string.query_feature_marker_title));
+
+                    if (featureAtMapClickPoint.properties() != null) {
+                        for (Map.Entry<String, JsonElement> entry : featureAtMapClickPoint.properties().entrySet()) {
+                            if(entry.getKey().equalsIgnoreCase("name_en")==true || entry.getKey().equalsIgnoreCase("height")==true) {
+                                stringBuilder.append(String.format("%s - %s", entry.getKey(), entry.getValue()));
+                                stringBuilder.append(System.getProperty("line.separator"));
+                            }
+                        }
+
+                        TextView propertiesListTextView = bubbleLayout.findViewById(R.id.info_window_feature_properties_list);
+                        propertiesListTextView.setText(stringBuilder.toString());
+
+                        int measureSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
+                        bubbleLayout.measure(measureSpec, measureSpec);
+
+                        float measuredWidth = bubbleLayout.getMeasuredWidth();
+
+                        bubbleLayout.setArrowPosition(measuredWidth / 2 - 5);
+
+                        Bitmap bitmap = MainActivity.SymbolGenerator.generate(bubbleLayout);
+                        imagesMap.put(CALLOUT_IMAGE_ID, bitmap);
+                    }
+                }
+            }
+
+            return imagesMap;
+        }
+
+        @Override
+        protected void onPostExecute(HashMap<String, Bitmap> bitmapHashMap) {
+            super.onPostExecute(bitmapHashMap);
+            MainActivity activity = activityRef.get();
+            if (activity != null && bitmapHashMap != null) {
+                activity.setImageGenResults(bitmapHashMap);
+                activity.refreshSource(featureAtMapClickPoint);
+            }
+        }
+
+    }
+
+    /**
+     * Utility class to generate Bitmaps for Symbol.
+     */
+    private static class SymbolGenerator {
+
+        /**
+         * Generate a Bitmap from an Android SDK View.
+         *
+         * @param view the View to be drawn to a Bitmap
+         * @return the generated bitmap
+         */
+        static Bitmap generate(@NonNull View view) {
+            int measureSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
+            view.measure(measureSpec, measureSpec);
+
+            int measuredWidth = view.getMeasuredWidth();
+            int measuredHeight = view.getMeasuredHeight();
+
+            view.layout(0, 0, measuredWidth, measuredHeight);
+            Bitmap bitmap = Bitmap.createBitmap(measuredWidth, measuredHeight, Bitmap.Config.ARGB_8888);
+            bitmap.eraseColor(Color.TRANSPARENT);
+            Canvas canvas = new Canvas(bitmap);
+            view.draw(canvas);
+            return bitmap;
+        }
+    }
+
 
 }
