@@ -822,7 +822,9 @@ private LocationEngine locationEngine;
 
     private void buildingplugin(){
 
-        if(flag == 1) {
+        addExtrusionLayer();
+
+        /*if(flag == 1) {
             map.getStyle(new Style.OnStyleLoaded() {
                 @Override
                 public void onStyleLoaded(@NonNull Style style) {
@@ -859,7 +861,7 @@ private LocationEngine locationEngine;
             flag = 1;
 
 
-        }
+        }*/
 
 
     }
