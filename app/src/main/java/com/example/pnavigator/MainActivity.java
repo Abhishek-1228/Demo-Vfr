@@ -12,6 +12,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.PointF;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
@@ -64,6 +65,7 @@ import com.mapbox.mapboxsdk.offline.OfflineTilePyramidRegionDefinition;
 import com.mapbox.mapboxsdk.plugins.building.BuildingPlugin;
 import com.mapbox.mapboxsdk.plugins.places.autocomplete.PlaceAutocomplete;
 import com.mapbox.mapboxsdk.plugins.places.autocomplete.model.PlaceOptions;
+import com.mapbox.mapboxsdk.style.layers.FillExtrusionLayer;
 import com.mapbox.mapboxsdk.style.layers.Layer;
 import com.mapbox.mapboxsdk.style.layers.Property;
 import com.mapbox.mapboxsdk.style.layers.SymbolLayer;
@@ -75,6 +77,8 @@ import org.json.JSONObject;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.lang.ref.WeakReference;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -803,7 +807,6 @@ private LocationEngine locationEngine;
 
 
     public void back(){
-        Log.d("in back","out if");
         if(map.getLocationComponent().isLocationComponentActivated() && map.getLocationComponent().getLastKnownLocation()!=null) {
 
             CameraPosition back = new CameraPosition.Builder()
@@ -811,7 +814,6 @@ private LocationEngine locationEngine;
                     .zoom(map.getCameraPosition().zoom)
                     .tilt(map.getCameraPosition().tilt)
                     .build();
-            Log.d("in back","in if");
             map.animateCamera(CameraUpdateFactory.newCameraPosition(back));
         }
 
@@ -1099,6 +1101,38 @@ private LocationEngine locationEngine;
             return bitmap;
         }
     }
+
+    public void addExtrusionLayer(){
+
+
+
+        map.getStyle(new Style.OnStyleLoaded() {
+            @Override
+            public void onStyleLoaded(@NonNull Style style) {
+                try {
+                    style.addSource(new GeoJsonSource("sampleSource",new URI("file://storage/emulated/0/Download/3db-US-Philadelphia.json")));
+                    Log.i("addSource","Success");
+                    FillExtrusionLayer fillExtrusionLayer = new FillExtrusionLayer("sampleLayer", "sampleSource");
+
+                    style.addLayer(fillExtrusionLayer);
+
+                } catch (URISyntaxException e) {
+                    Log.i("addSource","Source error");
+                    e.printStackTrace();
+                }
+            }
+        });
+
+
+
+
+
+
+
+
+    }
+
+
 
 
 }
